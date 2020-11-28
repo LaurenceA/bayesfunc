@@ -70,9 +70,9 @@ class FactorisedConv2dWeights(FactorisedParam):
 
 
 class FactorisedLinear(AbstractLinear):
-r"""Applies a linear transformation to the incoming data: :math:`y = xA^T + b`
+    r"""Applies a linear transformation to the incoming data: :math:`y = xA^T + b`
 
-    This module supports :ref:`TensorFloat32<tf32_on_ampere>`.
+    This module supports
 
     Args:
         in_features: size of each input sample
@@ -81,8 +81,10 @@ r"""Applies a linear transformation to the incoming data: :math:`y = xA^T + b`
             Default: ``True``
 
     Shape:
-        - Input: `(..., in_features)`
-        - Output: `(..., out_features)` 
+        - Input: :math:`(N, *, H_{in})` where :math:`*` means any number of
+          additional dimensions and :math:`H_{in} = \text{in\_features}`
+        - Output: :math:`(N, *, H_{out})` where all but the last dimension
+          are the same shape as the input and :math:`H_{out} = \text{out\_features}`.
 
     Attributes:
         weight: the learnable weights of the module of shape
@@ -93,6 +95,14 @@ r"""Applies a linear transformation to the incoming data: :math:`y = xA^T + b`
                 If :attr:`bias` is ``True``, the values are initialized from
                 :math:`\mathcal{U}(-\sqrt{k}, \sqrt{k})` where
                 :math:`k = \frac{1}{\text{in\_features}}`
+
+    Examples::
+
+        >>> m = nn.Linear(20, 30)
+        >>> input = torch.randn(128, 20)
+        >>> output = m(input)
+        >>> print(output.size())
+        torch.Size([128, 30])
     """
     Weights = FactorisedLinearWeights
 
