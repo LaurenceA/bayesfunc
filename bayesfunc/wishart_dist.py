@@ -1,7 +1,7 @@
 import math
 import torch as t
-from bnn.singular_cholesky import singular_cholesky
-from bnn.lop import PositiveDefiniteMatrix, LowerTriangularMatrix, Inv, Product, Matrix
+from .singular_cholesky import singular_cholesky
+from .lop import PositiveDefiniteMatrix, LowerTriangularMatrix, Inv, Product, Matrix
 
 
 def bartlett(K, nu, sample_shape=t.Size([])):

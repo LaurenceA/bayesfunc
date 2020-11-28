@@ -3,7 +3,7 @@
 ## Installation
 Run:
 ```python
-python setup.py devel
+python setup.py develop
 ```
 which copies symlinks to your package directory.
 

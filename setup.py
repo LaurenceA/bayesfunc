@@ -1,9 +1,9 @@
 from setuptools import setup
 
 setup(
-    name="bayesfunc"
+    name="bayesfunc",
     version="0.1.0",
-    description="a number of Bayesian priors over functions"
+    description="Variational inference for BNN, DGP and DKP priors over functions",
     long_description="",
     author="Laurence Aitchison, Sebastian Ober",
     author_email="laurence.aitchison@gmail.com",
