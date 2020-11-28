@@ -70,29 +70,30 @@ class FactorisedConv2dWeights(FactorisedParam):
 
 
 class FactorisedLinear(AbstractLinear):
-    r"""Applies a linear transformation to the incoming data: :math:`y = xA^T + b`
+    r"""
+    IID Gaussian prior and factorised Gaussian posterior over the weights of a fully-connected layer.
 
-    Args:
-        in_features: size of each input sample
-        out_features: size of each output sample
-        bias: If set to ``False``, the layer will not learn an additive bias.
-            Default: ``True``
+    Arg:
+        - **in_features:** size of each input sample
+        - **out_features:** size of each output sample
+        - **bias:** If set to ``False``, the layer will not learn an additive bias.
+          Default: ``True``
 
     Shape:
-        - Input: :math:`(N, *, H_{in})` where :math:`*` means any number of
-          additional dimensions and :math:`H_{in} = \text{in\_features}`
-        - Output: :math:`(N, *, H_{out})` where all but the last dimension
-          are the same shape as the input and :math:`H_{out} = \text{out\_features}`.
+        - **Input:** ``(samples, *shape, in_features)``
+        - **Output:** ``(samples, *shape, out_features)``
 
-    Attributes:
-        weight: the learnable weights of the module of shape
-            :math:`(\text{out\_features}, \text{in\_features})`. The values are
-            initialized from :math:`\mathcal{U}(-\sqrt{k}, \sqrt{k})`, where
-            :math:`k = \frac{1}{\text{in\_features}}`
-        bias:   the learnable bias of the module of shape :math:`(\text{out\_features})`.
-                If :attr:`bias` is ``True``, the values are initialized from
-                :math:`\mathcal{U}(-\sqrt{k}, \sqrt{k})` where
-                :math:`k = \frac{1}{\text{in\_features}}`
+    Random Variables:
+        - **weight:** the learnable weights of the module of shape
+          ``(in_features, out_features)``.
+
+    Prior:
+        - IID Gaussian, with variance :math:`1/\text{in_channels}`
+
+    Approximate Posterior:
+        - MFVI 
+
+
     Examples::
 
         >>> m = nn.Linear(20, 30)
@@ -105,4 +106,37 @@ class FactorisedLinear(AbstractLinear):
 
 
 class FactorisedConv2d(AbstractConv2d):
+    r"""
+    IID Gaussian prior and factorised Gaussian posterior over the weights of a 2D convolutional layer.
+
+    Arg:
+        - **in_channels:** number of channels in input tensor
+        - **out_channels:** number of channels in output tensor
+        - **kernel_size:** size of convolutional kernel
+        - **bias:** If set to ``False``, the layer will not learn an additive bias.
+          Default: ``True``
+
+    Shape:
+        - **Input:** ``(samples, mbatch, in_height, in_width, in_features)``
+        - **Output:** ``(samples, mbatch, in_height, in_width, out_features)``
+
+    Random Variables:
+        - **weight:** the learnable weights of the module of shape
+          ``(out_channels, in_channels, in_features, out_features)``.
+
+    Prior:
+        - IID Gaussian, with variance :math:`1/(\text{fan-in}*\text{kernel_size}^2)`
+
+    Approximate Posterior:
+        - MFVI 
+
+
+    Examples::
+
+        >>> m = nn.Linear(20, 30)
+        >>> input = torch.randn(128, 20)
+        >>> output = m(input)
+        >>> print(output.size())
+        torch.Size([128, 30])
+    """
     Weights = FactorisedConv2dWeights

@@ -20,3 +20,4 @@ Indices and tables
 * :ref:`search`
 
 .. autoclass:: bayesfunc.FactorisedLinear
+.. autoclass:: bayesfunc.FactorisedConv2d
