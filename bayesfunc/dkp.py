@@ -6,8 +6,8 @@ import torch as t
 import numpy as np
 
 
-from bnn.lop import Matrix, LowerTriangularMatrix, PositiveDefiniteMatrix, Product, Inv, Identity, Scale, Product
-from bnn.general import KG
+from .lop import Matrix, LowerTriangularMatrix, PositiveDefiniteMatrix, Product, Inv, Identity, Scale, Product
+from .general import KG
 
 
 def bartlett(K, nu, sample_shape=t.Size([])):

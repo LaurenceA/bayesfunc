@@ -10,11 +10,5 @@ setup(
     url="https://github.com/laurencea/bayesfunc/",
     license="MIT license",
     packages=["bayesfunc", "uci"],
-    install_requires=[
-        "torch>=1.5.0",
-        # Coarse dependencies
-        "numpy>=1.0<2.0",
-        "scipy>=1.5.2<1.6",
-    ],
     test_suite="testing",
 )

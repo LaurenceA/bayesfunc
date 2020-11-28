@@ -1,7 +1,7 @@
 import math
 import torch as t
 import torch.nn as nn
-import bnn.wishart_dist as wd
+from .wishart_dist import InverseWishart
 
 
 class IWLinear(nn.Module):
@@ -29,7 +29,7 @@ class IWLinear(nn.Module):
     def forward(self, K):
         prior_nu = self.prior_log_nu.exp()
         prior_Psi = K * prior_nu
-        prior = wd.InverseWishart(prior_Psi, prior_nu)
+        prior = InverseWishart(prior_Psi, prior_nu)
 
         weight = self.log_weight.exp()
 
@@ -39,7 +39,7 @@ class IWLinear(nn.Module):
 
         post_Psi = prior_Psi + A
 
-        post = wd.InverseWishart(post_Psi, post_nu)
+        post = InverseWishart(post_Psi, post_nu)
         Kp = post.rsample()
 
         logPQ = post.log_prob(Kp) - prior.log_prob(Kp)
