@@ -5,10 +5,13 @@ import torch.nn as nn
 from .general import KG
 
 class Kernel(nn.Module):
+    """
+    Abstract kernel class.  Could take KG or features as input.  Must have ``self.distances`` overwritten.
+    """
     def forward(self, xG):
         (d2ii, d2it, d2tt) = self.distances(xG)
 
-        noise_var = 1E-8
+        noise_var = 1E-6
 
         Kii = self.kernel(d2ii)
         Kii = Kii + noise_var*t.eye(Kii.shape[-1], device=d2ii.device, dtype=d2ii.dtype)
@@ -20,6 +23,9 @@ class Kernel(nn.Module):
         return KG(h*Kii, h*Kit, h*Ktt)
 
 class KernelFeatures(Kernel):
+    """
+    Abstract kernel from features.  Has lengthscale parameter for each input and height parameter for overall scale of covariance.
+    """
     def __init__(self, in_features, inducing_batch=None):
         super().__init__()
         assert inducing_batch is not None
@@ -71,6 +77,9 @@ class CombinedKernel(nn.Module):
 
 
 class KernelGram(Kernel):
+    """
+    Abstract kernel from Gram matrix.  A single lengthscale for the input, and a single height parameter.
+    """
     def __init__(self, log_lengthscale=0.):
         super().__init__()
         self.log_lengthscales = nn.Parameter(log_lengthscale*t.ones(()))
@@ -92,14 +101,33 @@ class KernelGram(Kernel):
 
         
 class SqExpKernelGram(KernelGram):
+    """
+    Squared exponential kernel from Gram matrix.
+
+    optional kwargs:
+        - **log_lengthscale (float):** initial value for the lengthscale.  Default: ``0.``.
+    """
     def kernel(self, d2):
         return t.exp(-0.5*d2)
 
 class SqExpKernel(KernelFeatures):
+    """
+    Squared exponential kernel from features.
+
+    arg:
+        - **in_features (int):**
+        - **inducing_batch (int):**
+    """
     def kernel(self, d2):
         return t.exp(-0.5*d2)
 
 class ReluKernelGram(nn.Module):
+    """
+    Relu  kernel from Gram matrix.
+
+    optional kwargs:
+        - **log_lengthscale (float):** initial value for the lengthscale.  Default: ``0.``.
+    """
     epsilon = 1E-6
     def component(self, xy, xx, yy):
         """
@@ -140,9 +168,19 @@ class ReluKernelGram(nn.Module):
         return KG(ii, it, K.tt+self.epsilon)
 
 def ReluKernelFeatures(inducing_batch):
+    """
+    Relu kernel, which takes features as input
+    """
     return nn.Sequential(FeaturesToKernel(inducing_batch), ReluKernelGram())
 
 class FeaturesToKernel(nn.Module):
+    """
+    Converts features to the corresponding Gram matrix.
+
+    arg:
+        - **inducing_batch (int):** Number of inducing inputs.
+    
+    """
     def __init__(self, inducing_batch):
         super().__init__()
         self.inducing_batch = inducing_batch

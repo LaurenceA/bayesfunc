@@ -6,6 +6,14 @@ from .prob_prog import VI_Scale, VI_Normal
 from .outputs import CutOutput
 
 class KG():
+    r"""
+    Simple container class for different components of a covariance matrix.  You shouldn't need to use this unless you are developing your own kernels.
+
+    arg:
+        - **ii:** :math:`P_\text{i}\times P_\text{i}` covariance matrix for inducing points.  ``shape=(samples, inducing_batch, inducing_batch)``
+        - **it:** :math:`P_\text{i}\times P_\text{t}` covariance matrix for inducing points.  ``shape=(samples, inducing_batch, mbatch)``
+        - **tt:** :math:`P_\text{t}` diagonal variances test/train points.  ``shape=(samples, 1, mbatch)``?
+    """
     def __init__(self, ii, it, tt):
         self.ii = ii
         self.it = it
@@ -45,15 +53,52 @@ class InducingRemove(nn.Module):
         return x[:, self.inducing_batch:]
 
 def InducingWrapper(net, inducing_batch, *args, **kwargs):
+    """
+    Combines incoming test/train data with learned inducing inputs, then strips away the inducing outputs, just leaving the function approximated at inducing locations. 
+
+    args:
+        net (nn.Module): The underlying function approximator, represented as PyTorch modules, to be wrapped.
+        inducing_batch (int): The underlying function approximator, represented as PyTorch modules, to be wrapped.
+
+    Keyword Args:
+        inducing_shape (Optional[torch.Size]): The size of the inducing inputs, including `inducing_batch` as the first dimension.  Default: ``None``.
+        inducing_data (Optional[torch.Tensor]): The values of the inducing inputs. Useful to e.g. initialize the inducing points on top of datapoints.  Default: ``None``.
+        fixed (Bool): Do we fix the inducing point locations?  Default: ``False``.
+
+    Must specify one and only one of `inducing_shape` or `inducing_data`
+ 
+    Example:
+        >>> import bayesfunc as bf
+        >>> import torch as t
+        >>> import torch.nn as nn
+        >>>
+        >>> in_features = 20
+        >>> hidden_features = 50
+        >>> out_features = 30
+        >>>
+        >>> m1 = bf.GILinear(in_features, hidden_features, inducing_batch=100)
+        >>> m2 = bf.GILinear(hidden_features, out_features, inducing_batch=100)
+        >>> net = nn.Sequential(m1, m2)
+        >>>
+        >>> net = bf.InducingWrapper(net, 100, inducing_shape=(100, in_features))
+        >>> output = net(t.randn(3, 128, in_features))
+        >>> output.shape
+        torch.Size([3, 128, 30])
+    """
     ia = InducingAdd(inducing_batch, *args, **kwargs)
     ir = InducingRemove(inducing_batch)
     return nn.Sequential(ia, net, ir)
 
-def logpq(net):
+def logpq(f):
+    """
+    Extracts log P(f) - log Q(f) by iterating through all modules in the network
+
+    args:
+        f: function approximator written as a pytorch module
+    """
     total = 0.
-    for mod in net.modules():
+    for mod in f.modules():
         if hasattr(mod, "logpq"):
-            #print((mod, mod.logpq.mean().item()))
             total += mod.logpq
             mod.logpq = None
     return total

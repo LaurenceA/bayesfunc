@@ -73,19 +73,25 @@ class FactorisedLinear(AbstractLinear):
     r"""
     IID Gaussian prior and factorised Gaussian posterior over the weights of a fully-connected layer.
 
-    Arg:
+    arg:
         - **in_features:** size of each input sample
         - **out_features:** size of each output sample
-        - **bias:** If set to ``False``, the layer will not learn an additive bias.
-          Default: ``True``
+
+    kwargs:
+        - **bias:** If set to ``False``, the layer will not learn an additive bias.  Default: ``True``
+        - **prior:** The prior over weights.  Default ``NealPrior``.
+        - **var_fixed:** Defaults to ``None``.  If set to a float, it fixes the approximate posterior variance over weights to that value.
+        - **var_init_mult:** The approximate posterior variance is initialized to be equal to the prior variance, multiplied by ``var_init_mult``.  Defaults to ``1E-3`` such that the variances are initialized to be small.
+        - **mean_init_mult:** The approximate posterior means are initialized by sampling from the prior, multiplied by ``mean_init_mult``.  As there is no particular reason to make this small, it defaults to 1.
+        - **log_var_lr:** Multiplier for the learning rate for the approximate posterior variances.
 
     Shape:
-        - **Input:** ``(samples, *shape, in_features)``
-        - **Output:** ``(samples, *shape, out_features)``
+        - **Input:** ``(samples, mbatch, in_features)``
+        - **Output:** ``(samples, mbatch, out_features)``
 
     Random Variables:
-        - **weight:** the learnable weights of the module of shape
-          ``(in_features, out_features)``.
+        - **weight:** the learnable weights of the module of shape ``(in_features+bias, out_features)``, where ``bias=True`` or ``bias=False`` which converts to ``bias=1`` or ``bias=1``.
+          Note that we implement the bias by adding a vector of ones to the input, so the dimension of the weights depends on the presence of a bias.
 
     Prior:
         - IID Gaussian, with variance :math:`1/\text{in_channels}`
@@ -94,13 +100,15 @@ class FactorisedLinear(AbstractLinear):
         - MFVI 
 
 
-    Examples::
+    Examples:
 
-        >>> m = nn.Linear(20, 30)
-        >>> input = torch.randn(128, 20)
+        >>> import torch
+        >>> import bayesfunc as bf
+        >>> m = bf.FactorisedLinear(20, 30)
+        >>> input = torch.randn(3, 128, 20)
         >>> output = m(input)
         >>> print(output.size())
-        torch.Size([128, 30])
+        torch.Size([3, 128, 30])
     """
     Weights = FactorisedLinearWeights
 
@@ -109,12 +117,19 @@ class FactorisedConv2d(AbstractConv2d):
     r"""
     IID Gaussian prior and factorised Gaussian posterior over the weights of a 2D convolutional layer.
 
-    Arg:
+    arg:
         - **in_channels:** number of channels in input tensor
         - **out_channels:** number of channels in output tensor
         - **kernel_size:** size of convolutional kernel
-        - **bias:** If set to ``False``, the layer will not learn an additive bias.
-          Default: ``True``
+
+    kwargs:
+        - **stride:** Standard convolutional stride.  Defaults to 1.
+        - **padding:** Standard convolutional padding.  Defaults to 0.
+        - **prior:** The prior over weights.  Default ``NealPrior``.
+        - **var_fixed:** Defaults to ``None``.  If set to a float, it fixes the approximate posterior variance over weights to that value.
+        - **var_init_mult:** The approximate posterior variance is initialized to be equal to the prior variance, multiplied by ``var_init_mult``.  Defaults to ``1E-3`` such that the variances are initialized to be small.
+        - **mean_init_mult:** The approximate posterior means are initialized by sampling from the prior, multiplied by ``mean_init_mult``.  As there is no particular reason to make this small, it defaults to 1.
+        - **log_var_lr:** Multiplier for the learning rate for the approximate posterior variances.
 
     Shape:
         - **Input:** ``(samples, mbatch, in_height, in_width, in_features)``
@@ -131,12 +146,7 @@ class FactorisedConv2d(AbstractConv2d):
         - MFVI 
 
 
-    Examples::
+    Examples:
 
-        >>> m = nn.Linear(20, 30)
-        >>> input = torch.randn(128, 20)
-        >>> output = m(input)
-        >>> print(output.size())
-        torch.Size([128, 30])
     """
     Weights = FactorisedConv2dWeights

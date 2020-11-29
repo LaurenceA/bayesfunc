@@ -3,6 +3,7 @@ import torch.nn as nn
 from .conv_mm import conv_mm
 from .abstract_bnn import AbstractLinear, AbstractConv2d
 from .lop import mvnormal_log_prob_unnorm
+from .priors import NealPrior
 
 
 def rsample_logpq_weights(self, XLX, XLY, prior, neuron_prec=True):
@@ -48,7 +49,7 @@ def rsample_logpq_weights_fc(self, Xi, neuron_prec):
 
 
 class GILinearWeights(nn.Module):
-    def __init__(self, in_features, out_features, prior=None, bias=True, inducing_targets=None, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, inducing_batch=None):
+    def __init__(self, in_features, out_features, prior=NealPrior, bias=True, inducing_targets=None, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, inducing_batch=None):
         super().__init__()
         assert inducing_batch is not None
         self.inducing_batch = inducing_batch
@@ -79,7 +80,7 @@ class GILinearWeights(nn.Module):
 
 
 class LILinearWeights(nn.Module):
-    def __init__(self, in_features, out_features, prior=None, bias=True, log_prec_init=-4., log_prec_lr=1., neuron_prec=False):
+    def __init__(self, in_features, out_features, prior=NealPrior, bias=True, log_prec_init=-4., log_prec_lr=1., neuron_prec=False):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -108,11 +109,10 @@ class LILinearWeights(nn.Module):
 
 
 class GIConv2dWeights(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, prior=None, stride=1, padding=0, bias=False, inducing_targets=None, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, inducing_batch=None):
+    def __init__(self, in_channels, out_channels, kernel_size, prior=NealPrior, stride=1, padding=0, inducing_targets=None, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, inducing_batch=None):
         super().__init__()
         assert 1==kernel_size%2
         assert padding == kernel_size//2
-        assert not bias
         assert inducing_batch is not None
         assert inducing_batch != 0
         self.inducing_batch = inducing_batch
@@ -154,11 +154,10 @@ class GIConv2dWeights(nn.Module):
 
 
 class LIConv2dWeights(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, prior=None, stride=1, padding=0, bias=False, log_prec_init=-4., log_prec_lr=1., neuron_prec=False):
+    def __init__(self, in_channels, out_channels, kernel_size, prior=NealPrior, stride=1, padding=0, log_prec_init=-4., log_prec_lr=1., neuron_prec=False):
         super().__init__()
         assert 1==kernel_size%2
         assert padding == kernel_size//2
-        assert not bias
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -194,16 +193,130 @@ class LIConv2dWeights(nn.Module):
 
 
 class GILinear(AbstractLinear):
+    r"""
+    IID Gaussian prior and factorised Gaussian posterior over the weights of a fully-connected layer.
+
+    arg:
+        - **in_features:** size of each input sample
+        - **out_features:** size of each output sample
+
+    compulsory kwargs:
+        - **inducing_batch:** This module assumes that the first ``inducing_batch`` elements of the minibatch are inducing, and the rest are test/training inputs. Can be combined with InducingWrapper to simplify working with inducing inputs.
+
+    optional kwargs:
+        - **bias:** If set to ``False``, the layer will not learn an additive bias.  Default: ``True``
+        - **prior:** Prior over neural network weights.  Defaults: ``NealPrior``.
+        - **inducing_targets:** Initial value of the inducing targets (useful at the top-layer, but never necessary).  Default: ``None``.
+        - **neuron_prec:** Use a different precision parameter for each hidden neuron?  Considerably increases computational cost for relatively small performance benefit.  Default: ``False``.
+        - **log_prec_init:** Initial value of the precision parameters.  The default assumes that little data is available.  Default: ``-4``. 
+        - **log_prec_lr:** Multiplier for the learning rate of the precision parameters.  Default: ``1``.
+
+    Shape:
+        - **Input:** ``(samples, mbatch, in_features)``
+        - **Output:** ``(samples, mbatch, out_features)``
+
+    Examples:
+
+        >>> import torch
+        >>> import bayesfunc as bf
+        >>> m = bf.GILinear(20, 30, inducing_batch=20)
+        >>> input = torch.randn(3, 128, 20)
+        >>> output = m(input)
+        >>> print(output.size())
+        torch.Size([3, 128, 30])
+    """
     Weights = GILinearWeights
 
 
 class GIConv2d(AbstractConv2d):
+    r"""
+    IID Gaussian prior and factorised Gaussian posterior over the weights of a 2D convolutional layer.
+
+    arg:
+        - **in_channels:** number of channels in input tensor
+        - **out_channels:** number of channels in output tensor
+        - **kernel_size:** size of convolutional kernel
+
+    compulsory kwargs:
+        - **inducing_batch:** This module assumes that the first ``inducing_batch`` elements of the minibatch are inducing, and the rest are test/training inputs. Can be combined with InducingWrapper to simplify working with inducing inputs.
+
+    optional kwargs:
+        - **stride:** Standard convolutional stride.  Defaults to 1.
+        - **padding:** Standard convolutional padding.  Defaults to 0.
+        - **prior:** Prior over neural network weights.  Defaults: ``NealPrior``.
+        - **inducing_targets:** Initial value of the inducing targets (useful at the top-layer, but never necessary).  Default: ``None``.
+        - **neuron_prec:** Use a different precision parameter for each hidden neuron?  Considerably increases computational cost for relatively small performance benefit.  Default: ``False``.
+        - **log_prec_init:** Initial value of the precision parameters.  The default assumes that little data is available.  Default: ``-4``. 
+        - **log_prec_lr:** Multiplier for the learning rate of the precision parameters.  Default: ``1``.
+
+    Shape:
+        - **Input:** ``(samples, mbatch, in_height, in_width, in_features)``
+        - **Output:** ``(samples, mbatch, in_height, in_width, out_features)``
+
+    Warning:
+        The inducing targets for this class are only initialised after a pass through the network (because it is only possible to infer the shape of the targets after it has seen an input).  As such, you must pass data through the network *before* calling ``opt(net.parameters(), lr=...)``.  Not doing so will silently cause poor performance.
+
+    """
     Weights = GIConv2dWeights
 
 
 class LILinear(AbstractLinear):
+    r"""
+    IID Gaussian prior and factorised Gaussian posterior over the weights of a fully-connected layer.
+    ``inducing_batch`` is set to ``in_features+bias`` to give the smallest number of inducing points that is complete.
+
+    arg:
+        - **in_features:** size of each input sample
+        - **out_features:** size of each output sample
+
+    optional kwargs:
+        - **bias:** If set to ``False``, the layer will not learn an additive bias.  Default: ``True``
+        - **prior:** Prior over neural network weights.  Defaults: ``NealPrior``.
+        - **neuron_prec:** Use a different precision parameter for each hidden neuron?  Considerably increases computational cost for relatively small performance benefit.  Default: ``False``.
+        - **log_prec_init:** Initial value of the precision parameters.  The default assumes that little data is available.  Default: ``-4``. 
+        - **log_prec_lr:** Multiplier for the learning rate of the precision parameters.  Default: ``1``.
+        - **inducing_targets:** Initial value of the inducing targets.  Only useful in a single-layer net. Default: ``None``.
+        - **inducing_batch:** Initial value of the inducing batch.  Only useful in a single-layer net.  Default: ``None``.
+
+    Shape:
+        - **Input:** ``(samples, mbatch, in_features)``
+        - **Output:** ``(samples, mbatch, out_features)``
+
+    Examples:
+
+        >>> import torch
+        >>> import bayesfunc as bf
+        >>> m = bf.LILinear(20, 30)
+        >>> input = torch.randn(3, 128, 20)
+        >>> output = m(input)
+        >>> print(output.size())
+        torch.Size([3, 128, 30])
+    """
     Weights = LILinearWeights
 
 
 class LIConv2d(AbstractConv2d):
+    r"""
+    IID Gaussian prior and factorised Gaussian posterior over the weights of a 2D convolutional layer.
+    ``inducing_batch`` is set to ``in_features+bias`` to give the smallest number of inducing points that is complete.
+
+    arg:
+        - **in_channels:** number of channels in input tensor
+        - **out_channels:** number of channels in output tensor
+        - **kernel_size:** size of convolutional kernel
+
+    optional kwargs:
+        - **stride:** Standard convolutional stride.  Defaults to 1.
+        - **padding:** Standard convolutional padding.  Defaults to 0.
+        - **prior:** Prior over neural network weights.  Defaults: ``NealPrior``.
+        - **inducing_targets:** Initial value of the inducing targets (useful at the top-layer, but never necessary).  Default: ``None``.
+        - **neuron_prec:** Use a different precision parameter for each hidden neuron?  Considerably increases computational cost for relatively small performance benefit.  Default: ``False``.
+        - **log_prec_init:** Initial value of the precision parameters.  The default assumes that little data is available.  Default: ``-4``. 
+        - **log_prec_lr:** Multiplier for the learning rate of the precision parameters.  Default: ``1``.
+
+    Shape:
+        - **Input:** ``(samples, mbatch, in_height, in_width, in_features)``
+        - **Output:** ``(samples, mbatch, in_height, in_width, out_features)``
+
+    """
     Weights = LIConv2dWeights

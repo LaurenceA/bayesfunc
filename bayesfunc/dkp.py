@@ -73,14 +73,20 @@ class InverseWishart:
         return res
 
 class IWLayer(nn.Module):
-    def __init__(self, P):
+    """
+    Inverse Wishart layer from a deep kernel process.  Takes a KG as input, and returns KG as output.
+    
+    arg:
+        - **inducing_batch (int):** number of inducing inputs
+    """
+    def __init__(self, inducing_batch):
         super().__init__()
-        self.P = P
+        self.P = inducing_batch
 
         self.log_delta = nn.Parameter(4*t.ones(()))
 
-        self.V = nn.Parameter(t.zeros(P, P))
-        self.log_diag = nn.Parameter(t.zeros(()))#t.zeros(P))
+        self.V = nn.Parameter(t.zeros(inducing_batch, inducing_batch))
+        self.log_diag = nn.Parameter(t.zeros(()))#Just a scale parameter for VV^T.
         self.log_gamma = nn.Parameter(t.zeros(())) #t.zeros(())) #Increase!
 
     @property
@@ -180,6 +186,13 @@ class IWLayer(nn.Module):
         return KG(Gii, git, gtt)
 
 class SingularIWLayer(IWLayer):
+    """
+    Singular Inverse Wishart layer which takes the input features in a deep kernel process. Takes a features as input, and returns KG as output.
+    
+    arg:
+        - **in_features (int):** number of features
+        - **inducing_batch (int):** number of inducing points.
+    """
     def __init__(self, in_features, inducing_batch):
         super().__init__(in_features)
         self.in_features = in_features

@@ -13,6 +13,19 @@ from torch.distributions import Normal
 from .lop import PositiveDefiniteMatrix, Inv, mvnormal_log_prob
 
 class GIGP(nn.Module):
+    """
+    Global inducing point Gaussian process.  Takes KG as input and returns features.
+    arg:
+        - **out_features (int):**  Number of features to output.
+
+    compulsory kwargs:
+        - **inducing_batch (int):** Number of inducing points.
+
+    optional kwargs:
+        - **inducing_targets:** Initial setting of the inducing targets.  Oly
+        - **log_prec_init:** Initial value of the precision. Default to little evidence: ``-4``.
+        - **log_prec_lr:** Precision learning rate multiplier. Default: ``1.``.
+    """
     def __init__(self, out_features, inducing_targets=None, log_prec_init=-4., log_prec_lr=1., inducing_batch=None):
         super().__init__()
 
