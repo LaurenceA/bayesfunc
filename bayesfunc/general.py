@@ -102,6 +102,52 @@ def logpq(f):
             total += mod.logpq
             mod.logpq = None
     return total
+
+def clear_sample(f):
+    for mod in f.modules():
+        if hasattr(mod, "_sample"):
+            mod._sample = None 
+
+def get_sample_dict(f):
+    result = {}
+    for (n, m) in f.named_modules():
+        if hasattr(m, "_sample"):
+            result[n] = m._sample
+    return result
+
+def set_sample_dict(f, sample_dict):
+    mod_dict = {n: m for (n, m) in f.named_modules()}
+    for name, sample in sample_dict.items():
+        mod = mod_dict[name]
+        assert hasattr(mod, "_sample")
+        mod._sample = sample.detach()
+
+def propagate(f, input, sample_dict=None):
+    """
+    The ONLY way to run the neural networks defined in bayesfunc.  Replaces `f(input)`, which will now fail!
+    
+    args:
+        f: the bayesfunc function
+        input: input to the function
+
+    keyword args:
+        sample_dict: optional dictionary of sampled weights, to allow using the same weights for multiple different inputs
+
+    returns:
+        output: neural network output (as in `output = f(input)`). 
+        logpq: log P - log Q for the neural network weights.
+        output_sample_dict: a dictionary containing all the sampled weights used in the network.  If `sample_dict` is set, we have `output_sample_dict == sample_dict`.
+
+    In standard use, `sample_dict` is never set and `output_sample_dict` is never needed.  These only become useful e.g. in continual learning.
+    """
+    clear_sample(f)
+    if sample_dict is not None:
+        set_sample(f, sample_dict)
+    output = f(input) 
+    sample_dict = get_sample_dict(f)
+    clear_sample(f)
+    return output, logpq(f), sample_dict
+
     
 class NormalLearnedScale(nn.Module):
     def __init__(self):

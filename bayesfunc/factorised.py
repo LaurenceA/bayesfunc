@@ -39,6 +39,8 @@ class FactorisedParam(nn.Module):
         else:
             self.post_log_var_scaled = math.log(var_fixed)/log_var_lr
 
+        self._sample = None
+
     def forward(self, Xi):
         S = Xi.shape[0]
 
@@ -46,14 +48,18 @@ class FactorisedParam(nn.Module):
         sqrt_prec = 1./math.sqrt(self.in_features)
         Qw = Normal(sqrt_prec*self.post_mean, sqrt_prec*t.exp(t.ones((), device=Xi.device)*0.5*post_log_var))
 
-        w = Qw.rsample(sample_shape=t.Size([S]))
+        if self._sample is not None:
+            assert S == self._sample.shape[0]
+        else:
+            self._sample = Qw.rsample(sample_shape=t.Size([S])) 
+
         prior_prec = self.prior(S)
-        logP = mvnormal_log_prob(prior_prec, w.transpose(-1, -2))
-        logQ = Qw.log_prob(w).sum((-1, -2))
+        logP = mvnormal_log_prob(prior_prec, self._sample.transpose(-1, -2))
+        logQ = Qw.log_prob(self._sample).sum((-1, -2))
         assert logP.shape == t.Size([S])
         assert logQ.shape == t.Size([S])
         self.logpq = logP - logQ
-        return w
+        return self._sample
 
 
 

@@ -40,6 +40,8 @@ class GIGP(nn.Module):
         else:
             self.u = nn.Parameter(inducing_targets.clone().to(t.float32))
 
+        self._sample = None
+
     @property
     def L(self):
         norm = self.L_loc.diag().mean()
