@@ -112,7 +112,7 @@ class FactorisedLinear(AbstractLinear):
         >>> import bayesfunc as bf
         >>> m = bf.FactorisedLinear(20, 30)
         >>> input = torch.randn(3, 128, 20)
-        >>> output = m(input)
+        >>> output, _, _ = bf.propagate(m, input)
         >>> print(output.size())
         torch.Size([3, 128, 30])
     """

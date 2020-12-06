@@ -81,7 +81,7 @@ def InducingWrapper(net, inducing_batch, *args, **kwargs):
         >>> net = nn.Sequential(m1, m2)
         >>>
         >>> net = bf.InducingWrapper(net, 100, inducing_shape=(100, in_features))
-        >>> output = net(t.randn(3, 128, in_features))
+        >>> output, _, _ = bf.propagate(net, t.randn(3, 128, in_features))
         >>> output.shape
         torch.Size([3, 128, 30])
     """
@@ -124,7 +124,7 @@ def set_sample_dict(f, sample_dict):
 
 def propagate(f, input, sample_dict=None):
     """
-    The ONLY way to run the neural networks defined in bayesfunc.  Replaces `f(input)`, which will now fail!
+    The ONLY way to run the neural networks defined in bayesfunc.  Replaces `f(input)`, which will now fail silently!
     
     args:
         f: the bayesfunc function
@@ -133,12 +133,15 @@ def propagate(f, input, sample_dict=None):
     keyword args:
         sample_dict: optional dictionary of sampled weights, to allow using the same weights for multiple different inputs
 
-    returns:
-        output: neural network output (as in `output = f(input)`). 
-        logpq: log P - log Q for the neural network weights.
-        output_sample_dict: a dictionary containing all the sampled weights used in the network.  If `sample_dict` is set, we have `output_sample_dict == sample_dict`.
+    outputs:
+        - **output:** neural network output (as in ``output = f(input)``). 
+        - **logpq:** :math:`\log P(f) - \log Q(f)` the difference of prior and approximate posterior log-probabilities.
+        - **output_sample_dict:** a dictionary containing all the sampled weights used in the network.  If ``sample_dict`` is set, we have ``output_sample_dict == sample_dict``.
 
-    In standard use, `sample_dict` is never set and `output_sample_dict` is never needed.  These only become useful e.g. in continual learning.
+    warning:
+        Only properly implemented for ``GILinear``, ``GIConv2d``, ``FactorisedLinear`` and ``FactorisedConv2D``.  Everything else will run, but will independently sample a new function on every invocation, ignoring the ``sample_dict`` input argument.
+
+    In standard use, ``sample_dict`` is never set and ``output_sample_dict`` is never needed.  These only become useful e.g. in continual learning.
     """
     clear_sample(f)
     if sample_dict is not None:

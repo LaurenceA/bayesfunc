@@ -234,7 +234,7 @@ class GILinear(AbstractLinear):
         >>> import bayesfunc as bf
         >>> m = bf.GILinear(20, 30, inducing_batch=20)
         >>> input = torch.randn(3, 128, 20)
-        >>> output = m(input)
+        >>> output, _, _ = bf.propagate(m, input)
         >>> print(output.size())
         torch.Size([3, 128, 30])
     """
@@ -301,7 +301,7 @@ class LILinear(AbstractLinear):
         >>> import bayesfunc as bf
         >>> m = bf.LILinear(20, 30)
         >>> input = torch.randn(3, 128, 20)
-        >>> output = m(input)
+        >>> output, _, _ = bf.propagate(m, input)
         >>> print(output.size())
         torch.Size([3, 128, 30])
     """

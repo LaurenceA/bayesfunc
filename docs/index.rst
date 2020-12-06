@@ -32,6 +32,7 @@ bayesfunc introduces a number of PyTorch modules mirroring the standard pytorch 
 As such, modules can be combined and networks created using e.g. ``nn.Sequential``.  See Examples for further details.
 However these modules have a couple of differences.
 
+
 Sample and minibatch
 --------------------
 
@@ -54,7 +55,7 @@ For instance, if we wanted to do the equivalent of the above, with just one samp
     >>> import bayesfunc as bf
     >>> m = bf.FactorisedLinear(20, 30)
     >>> input = torch.randn(1, 128, 20)
-    >>> output = m(input)
+    >>> output, _, _ = bf.propagate(m, input)
     >>> print(output.size())
     torch.Size([1, 128, 30])
 
@@ -65,7 +66,7 @@ To efficiently replicate the inputs 10 times, we use ``expand``
 
     >>> m = bf.FactorisedLinear(20, 30)
     >>> input = torch.randn(1, 128, 20).expand(10, -1, -1)
-    >>> output = m(input)
+    >>> output, _, _ = bf.propagate(m, input)
     >>> print(output.size())
     torch.Size([10, 128, 30])
 
@@ -75,6 +76,14 @@ Note despite the inputs being the same for different samples, the outputs are di
     True
     >>> (output[0, 0, 0] == output[1, 0, 0]).item()
     False
+
+Propagate function
+------------------
+
+To run a network, you *must* use the `propagate` function.
+This function prepares the network (by optionally loading up a previously sampled set of weights), runs the network, returning the output, :math:`\log P(f) - \log Q(f)`, and the sampled weights used,
+
+.. autofunction:: bayesfunc.propagate
 
 Computing the ELBO
 ------------------
@@ -95,9 +104,9 @@ Critically, the first term, is just the standard neural-network loss (e.g. the c
 
 :math:`\frac{1}{B} \sum_{i\in \mathcal{B}_j}\log P(\text{data}_i| f)` = - average cross entropy
 
-And the second term is given by the bayesfunc library,
+And the second term is given by the bayesfunc library, as the second argument returned by `bf.propagate`
 
-:math:`\log P(f) - \log Q_\phi(f)` = ``bf.logpq(net)``
+:math:`\log P(f) - \log Q_\phi(f)` = ``bf.propagate(net, inputt)[1]``
 
 As such, the full training loop might look like::
 
@@ -105,23 +114,14 @@ As such, the full training loop might look like::
         # include a sample dimension
         x = x.expand(1, -1, -1)
         # compute the output
-        output = net(x)
+        output, logpq, _ = bf.propagate(net, x)
         # compute the log-likelihood/loss
         log_like = F.cross_entropy(x, y, reduction="mean")
         # the objective, where N is the number of datapoints
-        obj = log_like + bf.logpq(net)/N
+        obj = log_like + logpq/N
         optimizer.zero_grad()
         (-obj).backward()
         optimizer.step()
-
-.. autofunction:: bayesfunc.logpq
-
-Separation of sampling and application of functions
-----------------------------------------------------
-
-At present, every time you apply a function, you draw new samples from the approximate posterior.
-This isn't actually desirable behaviour --- its nice to be able apply the same sample from the approximate posterior to different inputs.
-
 
 .. _GI:
 
