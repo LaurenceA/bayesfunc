@@ -39,16 +39,11 @@ class AbstractConv2d(nn.Module):
         self.out_channels = out_channels
         self.kernel_size = kernel_size
 
-        self.transform_inputs  = transform_inputs(kernel_size)
-        self.transform_weights = transform_weights(kernel_size)
-
         self.stride = stride
         self.padding = padding
         self.weights = self.Weights(in_channels, out_channels, kernel_size, stride=stride, padding=padding, **kwargs)
 
     def forward(self, X):
-        X = self.transform_inputs(X)
-
         assert X.shape[-3] == self.in_channels
         (S, _, _, _, _) = X.shape
 
@@ -56,7 +51,6 @@ class AbstractConv2d(nn.Module):
         assert W.shape == t.Size([S, self.out_channels, self.in_channels*self.kernel_size**2])
 
         W = W.view(S, self.out_channels, self.in_channels, self.kernel_size, self.kernel_size)
-        W = self.transform_weights(W)
         result = bconv2d(X, W, stride=self.stride, padding=self.padding)
 
         assert result.shape[-3] == self.out_channels
