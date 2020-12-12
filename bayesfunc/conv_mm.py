@@ -154,7 +154,7 @@ if __name__ == "__main__":
     kernel_size = 3
     padding = kernel_size//2
 
-    mode = 'circular'
+    mode = 'constant'
     X = batch_extract_patches_conv(x, kernel_size, stride, padding, mode=mode)
     Y = batch_extract_patches_conv(y, 1, 1, 0, mode=mode)
 
@@ -162,6 +162,8 @@ if __name__ == "__main__":
     XTY = X.transpose(-1, -2) @ Y
 
     XTX2, XTY2 = conv_mm(x, y, kernel_size, stride, mode)
+
+    print(XTX[:3, :3], XTX2[:3, :3])
 
     assert t.allclose(XTY, XTY2)
     assert t.allclose(XTX, XTX2)
