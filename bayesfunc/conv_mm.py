@@ -47,7 +47,6 @@ def conv_mm(x, y, kernel_size, stride=1, mode='circular'):
         weight.shape = [S*Cy,    B, Wy, Hy]
         output.shape = [Cx,   S*Cy, oW, oH]
     """
-
     #### General
     assert x.shape[-4] == y.shape[-4]
     (S, B, Cx, _, _) = x.shape
@@ -75,11 +74,12 @@ def conv_mm(x, y, kernel_size, stride=1, mode='circular'):
 
     if mode=='circular':
         input_XTX = F.pad(input, 4*[kernel_size-1], mode=mode)
-        input_XTY = input_XTX[:, :, 1:-1, 1:-1]
+        cut = (kernel_size-1) - kernel_size//2
+        input_XTY = input_XTX[:, :, cut:-cut, cut:-cut]
         XTY = F.conv2d(input_XTY, weight_y, padding=0, groups=S)
         XTX = F.conv2d(input_XTX, weight_x, padding=0, groups=S)
     else:
-        XTY = F.conv2d(input, weight_y, padding=padding, groups=S)
+        XTY = F.conv2d(input, weight_y, padding=kernel_size//2, groups=S)
         XTX = F.conv2d(input, weight_x, padding=kernel_size-1, groups=S)
 
 
@@ -145,16 +145,17 @@ def extract_patches_unfold(x, kernel_size, stride, padding, mode='zeros'):
 
 
 if __name__ == "__main__":
+    N = 28
     stride = 1
     #[B, C, W, H]
-    x = t.randn(2, 5, 128, 28, 28, dtype=t.float64)
+    x = t.randn(2, 5, 128, N, N, dtype=t.float64)
     #[B, C', W, H]
-    y = t.randn(5, 256, 28//stride, 28//stride, dtype=t.float64)
+    y = t.randn(5, 256, N//stride, N//stride, dtype=t.float64)
 
     kernel_size = 3
     padding = kernel_size//2
 
-    mode = 'constant'
+    mode = 'circular'
     X = batch_extract_patches_conv(x, kernel_size, stride, padding, mode=mode)
     Y = batch_extract_patches_conv(y, 1, 1, 0, mode=mode)
 
