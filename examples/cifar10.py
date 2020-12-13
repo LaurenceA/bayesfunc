@@ -3,8 +3,8 @@ import math
 import torch as t
 import torch.nn as nn
 t.set_num_threads(1)
-t.backends.cudnn.benchmark=False
-t.backends.cudnn.deterministic=True
+t.backends.cudnn.benchmark=True
+t.backends.cudnn.deterministic=False
 import torch.nn.functional as F
 import argparse
 import pandas as pd
@@ -26,11 +26,10 @@ parser.add_argument('--temperL',           action='store_true',  help='temper be
 parser.add_argument('--test_samples',      type=int,   help='samples of the weights', nargs='?', default=10)
 parser.add_argument('--train_samples',     type=int,   help='samples of the weights', nargs='?', default=1)
 parser.add_argument('--prior',             type=str,   help='Prior', nargs='?', default="ScalePrior")
-parser.add_argument('--device',            type=str,   help='Device', nargs='?', default="cpu")
+parser.add_argument('--device',            type=str,   help='Device', nargs='?', default="cuda")
 parser.add_argument('--batch',             type=int,   help='Batch size', nargs='?', default=500)
 parser.add_argument('--subset',            type=int,   help='subset of data size', nargs='?')
-parser.add_argument('--epochs',            type=int,   help='number of periods (blocks of epochs)', nargs='?', default=1000)
-parser.add_argument('--print', action='store_true', default=True)
+parser.add_argument('--epochs',            type=int,   nargs='?', default=1000)
 parser.add_argument('--aug', type=str, nargs='?', help='data augmentation, aug or noaug', default="noaug")
 args = parser.parse_args()
 
@@ -154,13 +153,7 @@ def test():
         data, target = data.to(device), target.to(device)
         data = data.expand(args.test_samples, *data.shape)
 
-        #run net multiple times, average
-        outputs = []
-        for i in range(args.test_runs):
-            _output = bayesfunc.propagate(net, data)[0].squeeze(-1).squeeze(-1)
-            outputs.append(_output)
-
-        outputs = t.cat(outputs, 0)
+        outputs = bayesfunc.propagate(net, data)[0].squeeze(-1).squeeze(-1)
 
         output = outputs.log_softmax(-1).logsumexp(0) - math.log(outputs.shape[0])
 
@@ -192,10 +185,7 @@ for _epoch in range(args.epochs):
     test_correct.append(_test_correct)
 
     time = timer() - start_time
-    if args.print:
-        print(f"{os.path.basename(args.output_filename):<32}, period:{period:03d}, time:{time: 3.1f}, elbo:{_elbo:.3f}, KL:{_train_KL:.3f}, ll:{_test_ll:.3f}, train_c:{_train_correct:.3f}, test_c:{_test_correct:.3f}", flush=True)
-
-    scheduler.step()
+    print(f"{os.path.basename(args.output_filename):<32}, epoch:{_epoch:03d}, time:{time: 3.1f}, elbo:{_elbo:.3f}, KL:{_train_KL:.3f}, ll:{_test_ll:.3f}, train_c:{_train_correct:.3f}, test_c:{_test_correct:.3f}", flush=True)
 
 pd.DataFrame({
     'epoch' : epoch,
