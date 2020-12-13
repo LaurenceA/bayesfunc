@@ -75,7 +75,8 @@ def conv_mm(x, y, kernel_size, stride=1, mode='circular'):
     if mode=='circular':
         input_XTX = F.pad(input, 4*[kernel_size-1], mode=mode)
         cut = (kernel_size-1) - kernel_size//2
-        input_XTY = input_XTX[:, :, cut:-cut, cut:-cut]
+        is_even = 0==kernel_size%2
+        input_XTY = input_XTX[:, :, cut:(input_XTX.shape[-2]-cut-is_even), cut:(input_XTX.shape[-1]-cut-is_even)]
         XTY = F.conv2d(input_XTY, weight_y, padding=0, groups=S)
         XTX = F.conv2d(input_XTX, weight_x, padding=0, groups=S)
     else:
@@ -85,6 +86,7 @@ def conv_mm(x, y, kernel_size, stride=1, mode='circular'):
 
 
     #### XTY specific
+    print(XTY.shape)
     assert XTY.shape == t.Size([Cx, S*Cy, kernel_size, kernel_size])
     XTY = XTY.transpose(0, 1).reshape(S, Cy, Cx*kernel_size*kernel_size)
     XTY = XTY.transpose(-1, -2)
@@ -117,7 +119,12 @@ def extract_patches_conv(x, kernel_size, stride, padding, mode='zeros'):
     W = t.eye(pixels, dtype=x.dtype).expand(in_channels, -1, -1)
     W = W.reshape(in_channels*pixels, 1, kernel_size, kernel_size)
 
-    x = F.pad(x, 4*(padding,), mode=mode)
+    if 0 == kernel_size % 2:
+        assert padding*2 == kernel_size
+        pad = padding//2
+        x = F.pad(x, (pad+1,pad,pad+1,pad), mode=mode)
+    else:
+        x = F.pad(x, 4*(padding,), mode=mode)
     x = F.conv2d(x, W, stride=stride, groups=in_channels)
     x = x.view(x.shape[0], x.shape[1], x.shape[2]*x.shape[3])
     x = x.transpose(1,2)
@@ -152,7 +159,7 @@ if __name__ == "__main__":
     #[B, C', W, H]
     y = t.randn(5, 256, N//stride, N//stride, dtype=t.float64)
 
-    kernel_size = 3
+    kernel_size = 5
     padding = kernel_size//2
 
     mode = 'circular'
