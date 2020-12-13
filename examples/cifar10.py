@@ -25,7 +25,7 @@ parser.add_argument('--L',                 type=float, help='temperature scaling
 parser.add_argument('--temperL',           action='store_true',  help='temper beta', default=False)
 parser.add_argument('--test_samples',      type=int,   help='samples of the weights', nargs='?', default=10)
 parser.add_argument('--train_samples',     type=int,   help='samples of the weights', nargs='?', default=1)
-parser.add_argument('--prior',             type=str,   help='Prior', nargs='?', default="ScalePrior")
+parser.add_argument('--prior',             type=str,   help='Prior', nargs='?', default="SpatialIWPrior")
 parser.add_argument('--device',            type=str,   help='Device', nargs='?', default="cuda")
 parser.add_argument('--batch',             type=int,   help='Batch size', nargs='?', default=500)
 parser.add_argument('--subset',            type=int,   help='subset of data size', nargs='?')
