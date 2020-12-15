@@ -22,7 +22,9 @@ def conv_1x1(x, y):
     return XTX, XTY
 
 
-def conv_mm(x, y, kernel_size, stride=1, mode='circular'):
+def conv_mm(x, y, kernel_size): #, stride=1, mode='circular'):
+    stride = 1
+    mode = 'circular'
     """
         compute
         (x**2).shape = [C, C', dW, dH]
@@ -86,7 +88,6 @@ def conv_mm(x, y, kernel_size, stride=1, mode='circular'):
 
 
     #### XTY specific
-    print(XTY.shape)
     assert XTY.shape == t.Size([Cx, S*Cy, kernel_size, kernel_size])
     XTY = XTY.transpose(0, 1).reshape(S, Cy, Cx*kernel_size*kernel_size)
     XTY = XTY.transpose(-1, -2)

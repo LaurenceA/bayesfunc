@@ -195,9 +195,4 @@ pd.DataFrame({
     'test_ll' : test_ll,
     'train_correct' : train_correct,
     'test_correct' : test_correct,
-    'model': args.model,
-    'dataset': args.dataset,
-    'ap_lower' : args.ap_lower,
-    'ap_top' : args.ap_top,
-    'seed' : args.seed,
 }).to_csv(args.output_filename)
