@@ -120,8 +120,6 @@ class LILinearWeights(nn.Module):
 class GIConv2dWeights(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, prior=NealPrior, stride=1, padding=0, inducing_targets=None, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, inducing_batch=None):
         super().__init__()
-        assert 1==kernel_size%2
-        assert padding == kernel_size//2
         assert inducing_batch is not None
         assert inducing_batch != 0
         self.inducing_batch = inducing_batch
@@ -150,9 +148,9 @@ class GIConv2dWeights(nn.Module):
         Xi = X[:, :self.inducing_batch, :, :, :]
         if self.u is None:
             (_, _, _, Hin, Win) = Xi.shape
-            HW_in = (Hin, Win)
-            HW_out = [(HW_in[i] + 2*self.padding - self.kernel_size) // self.stride + 1 for i in range(2)]
-            self.u = nn.Parameter(t.randn(self.inducing_batch, self.out_channels, *HW_out, device=Xi.device, dtype=Xi.dtype))
+            #HW_in = (Hin, Win)
+            #HW_out = [(HW_in[i] + 2*self.padding - self.kernel_size) // self.stride + 1 for i in range(2)]
+            self.u = nn.Parameter(t.randn(self.inducing_batch, self.out_channels, Hin, Win, device=Xi.device, dtype=Xi.dtype))
 
         sqrt_prec = (0.5 * self.log_prec_lr * self.log_prec_scaled).exp()[:, None, None, None]
         Xil = sqrt_prec * Xi
