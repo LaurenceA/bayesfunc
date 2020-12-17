@@ -145,7 +145,7 @@ def propagate(f, input, sample_dict=None):
     """
     clear_sample(f)
     if sample_dict is not None:
-        set_sample(f, sample_dict)
+        set_sample_dict(f, sample_dict)
     output = f(input) 
     sample_dict = get_sample_dict(f)
     clear_sample(f)

@@ -31,7 +31,7 @@ def rsample_logpq_weights(self, XLX, XLY, prior, neuron_prec=True):
     if self._sample is not None: 
         assert S==self._sample.shape[0]
         dW = self._sample.unsqueeze(-1) - t.cholesky_solve(XLY, L)
-        Z = L.transpose(-1, -2) @ dWp
+        Z = L.transpose(-1, -2) @ dW
     else:
         Z = t.randn(S, out_features, in_features, 1, device=device, dtype=L.dtype)
         dW = t.triangular_solve(Z, L, upper=False, transpose=True)[0]
