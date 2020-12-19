@@ -170,7 +170,7 @@ class Bias(nn.Module):
 
 class BiasFeature(nn.Module):
     def forward(self, x):
-        return t.cat([x, t.ones(*x.shape[:2], 1, *x.shape[3:])], 2)
+        return t.cat([x, t.ones(*x.shape[:2], 1, *x.shape[3:], device=x.device, dtype=x.dtype)], 2)
 
 class MultFeatures(nn.Module):
     def __init__(self, *shape):

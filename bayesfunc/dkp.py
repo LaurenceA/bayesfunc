@@ -83,10 +83,10 @@ class IWLayer(nn.Module):
         super().__init__()
         self.P = inducing_batch
 
-        self.log_delta = nn.Parameter(4*t.ones(()))
+        self.log_delta = nn.Parameter(t.zeros(())) #4*t.ones(()))
 
-        self.V = nn.Parameter(t.zeros(inducing_batch, inducing_batch))
-        self.log_diag = nn.Parameter(t.zeros(()))#Just a scale parameter for VV^T.
+        self.V = nn.Parameter(t.randn(inducing_batch, inducing_batch))
+        self.log_diag = nn.Parameter(t.zeros(())) #-4*t.ones(()))#Just a scale parameter for VV^T.
         self.log_gamma = nn.Parameter(t.zeros(())) #t.zeros(())) #Increase!
 
     @property
