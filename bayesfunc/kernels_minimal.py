@@ -181,9 +181,11 @@ class FeaturesToKernel(nn.Module):
         - **inducing_batch (int):** Number of inducing inputs.
     
     """
-    def __init__(self, inducing_batch):
+    def __init__(self, inducing_batch, epsilon=None):
         super().__init__()
         self.inducing_batch = inducing_batch
+        self.epsilon = epsilon
+
     def forward(self, x):
         in_features = x.shape[-1]
         xi = x[:, :self.inducing_batch ]
@@ -192,6 +194,10 @@ class FeaturesToKernel(nn.Module):
         ii = xi @ xi.transpose(-1, -2) / in_features
         it = xi @ xt.transpose(-1, -2) / in_features
         tt = (xt**2).sum(-1) / in_features
+
+        if self.epsilon is not None:
+            ii = ii + self.epsilon*t.eye(ii.shape[-1], dtype=ii.dtype, device=ii.device)
+            tt = tt + self.epsilon
 
         #print("f2k")
         #print(ii[0, :3, :3])
