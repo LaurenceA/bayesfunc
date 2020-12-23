@@ -123,7 +123,7 @@ def set_sample_dict(f, sample_dict, detach=True):
         if detach:
             sample = sample.detach()
 
-        mod._sample = sample.detach()
+        mod._sample = sample
 
 def propagate(f, input, sample_dict=None, detach=True):
     """
