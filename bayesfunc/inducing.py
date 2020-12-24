@@ -47,14 +47,18 @@ def rsample_logpq_weights(self, XLX, XLY, prior, neuron_prec=True):
 
 def rsample_logpq_weights_fc(self, Xi, neuron_prec):
     log_prec = self.log_prec_lr*self.log_prec_scaled
-    XiLT  = log_prec.exp() * Xi.transpose(-1, -2)
+    XiT = Xi.transpose(-1, -2)
+    if self.prec_L is None:
+        XiLT  = log_prec.exp() * XiT#.transpose(-1, -2)
+    else:
+        XiLT = XiT @ ((self.prec_L*log_prec.exp())@self.prec_L.transpose(-1, -2))
     XiLXi = XiLT @ Xi
     XiLY  = XiLT @ self.u
     return rsample_logpq_weights(self, XiLXi, XiLY, self.prior, neuron_prec=neuron_prec)
 
 
 class GILinearWeights(nn.Module):
-    def __init__(self, in_features, out_features, prior=NealPrior, bias=True, inducing_targets=None, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, inducing_batch=None):
+    def __init__(self, in_features, out_features, prior=NealPrior, bias=True, inducing_targets=None, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, inducing_batch=None, full_prec=False):
         super().__init__()
         assert inducing_batch is not None
         self.inducing_batch = inducing_batch
@@ -78,6 +82,10 @@ class GILinearWeights(nn.Module):
 
         precs = out_features if neuron_prec else 1
         self.log_prec_scaled = nn.Parameter(lp_init*t.ones(precs, 1, inducing_batch))
+        if full_prec:
+            self.prec_L = nn.Parameter(t.eye(inducing_batch).expand(precs, -1, -1))
+        else:
+            self.prec_L = None
         
         self._sample = None
 
@@ -87,7 +95,7 @@ class GILinearWeights(nn.Module):
 
 
 class LILinearWeights(nn.Module):
-    def __init__(self, in_features, out_features, prior=NealPrior, bias=True, log_prec_init=-4., log_prec_lr=1., neuron_prec=False):
+    def __init__(self, in_features, out_features, prior=NealPrior, bias=True, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, full_prec=False):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -108,6 +116,10 @@ class LILinearWeights(nn.Module):
 
         precs = self.out_features if neuron_prec else 1
         self.log_prec_scaled = nn.Parameter(lp_init*t.ones(precs, 1, inducing_batch))
+        if full_prec:
+            self.prec_L = nn.Parameter(t.eye(inducing_batch).expand(precs, -1, -1))
+        else:
+            self.prec_L = None
 
         self._sample = None
 
@@ -163,7 +175,7 @@ class GIConv2dWeights(nn.Module):
 
 
 class LIConv2dWeights(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, prior=NealPrior, stride=1, padding=0, log_prec_init=-4., log_prec_lr=1., neuron_prec=False):
+    def __init__(self, in_channels, out_channels, kernel_size, prior=NealPrior, stride=1, padding=0, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, full_prec=False):
         super().__init__()
         assert 1==kernel_size%2
         assert padding == kernel_size//2
@@ -193,6 +205,10 @@ class LIConv2dWeights(nn.Module):
 
         precs = out_features if neuron_prec else 1
         self.log_prec_scaled = nn.Parameter(lp_init*t.ones(precs, 1, inducing_batch))
+        if full_prec:
+            self.prec_L = nn.Parameter(t.eye(inducing_batch).expand(precs, -1, -1))
+        else:
+            self.prec_L = None
 
         self._sample = None
 
