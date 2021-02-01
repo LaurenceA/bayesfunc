@@ -125,7 +125,7 @@ def set_sample_dict(f, sample_dict, detach=True):
 
         mod._sample = sample
 
-def propagate(f, input, sample_dict=None, detach=True):
+def propagate(f, *args, sample_dict=None, detach=True):
     """
     The ONLY way to run the neural networks defined in bayesfunc.  Replaces `f(input)`, which will now fail silently!
     
@@ -150,7 +150,7 @@ def propagate(f, input, sample_dict=None, detach=True):
     clear_sample(f)
     if sample_dict is not None:
         set_sample_dict(f, sample_dict, detach=detach)
-    output = f(input) 
+    output = f(*args) 
     sample_dict = get_sample_dict(f)
     clear_sample(f)
     return output, logpq(f), sample_dict
