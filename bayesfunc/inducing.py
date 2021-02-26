@@ -254,6 +254,41 @@ class GILinear(AbstractLinear):
     """
     Weights = GILinearWeights
 
+class GILinearFullPrec(nn.Module):
+    def __init__(self, in_features, out_features, bias=True, **kwargs):
+        super().__init__()
+
+        self.in_features = in_features
+        self.out_features = out_features
+
+        self.bias = bias
+        self.weights = GILinearWeights((in_features+bias)*out_features, 1, bias=False, **kwargs)
+
+    def forward(self, X):
+        assert X.shape[-1] == self.in_features
+        (S, _, _) = X.shape
+
+        if self.bias:
+            ones = t.ones((*X.shape[:-1], 1), device=X.device, dtype=X.dtype)
+            X = t.cat([X, ones], -1)
+
+        zeros = t.zeros_like(X)
+        X_trans = t.cat([t.cat([X if i==j else zeros for i in range(self.out_features)], -1) for j in range(self.out_features)], -2)
+        #print(X.shape)
+        #print(X_trans.shape)
+
+        W_trans = self.weights(X_trans)
+        #print(W_trans.shape)
+        W = W_trans.view(S, self.out_features, self.in_features+self.bias)
+        #print(W.shape)
+        assert S==W.shape[0]
+        
+        result = X@W.transpose(-1, -2)
+
+        assert result.shape[-1] == self.out_features
+        assert 3 == len(result.shape)
+        return result
+
 
 class GIConv2d(AbstractConv2d):
     r"""
@@ -347,3 +382,4 @@ class LIConv2d(AbstractConv2d):
 
     """
     Weights = LIConv2dWeights
+
