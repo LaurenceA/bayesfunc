@@ -97,6 +97,7 @@ class KernelGram(Kernel):
 
         lm2 = (-2*self.log_lengthscales).exp()
  
+        #don't need to multiply d2tt by lm2, because d2tt=0.
         return (lm2*d2ii, lm2*d2it, d2tt)
 
         
