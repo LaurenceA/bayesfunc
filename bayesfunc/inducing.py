@@ -28,17 +28,31 @@ def rsample_logpq_weights(self, XLX, XLY, prior, neuron_prec=True):
     logdet_prec = 2*L.diagonal(dim1=-1, dim2=-2).log().sum(-1)
     logdet_prec = logdet_prec.expand(S, out_features).sum(-1)
 
-    if self._sample is not None: 
-        assert S==self._sample.shape[0]
-        dW = self._sample.unsqueeze(-1) - t.cholesky_solve(XLY, L)
-        Z = L.transpose(-1, -2) @ dW
-    else:
-        Z = t.randn(S, out_features, in_features, 1, device=device, dtype=L.dtype)
-        dW = t.triangular_solve(Z, L, upper=False, transpose=True)[0]
-        self._sample = (t.cholesky_solve(XLY, L) + dW).squeeze(-1)
+    if neuron_prec:
+        if self._sample is not None:
+            assert S == self._sample.shape[0]
+            dW = self._sample.unsqueeze(-1) - t.cholesky_solve(XLY, L)
+            Z = L.transpose(-1, -2) @ dW
+        else:
+            Z = t.randn(S, out_features, in_features, 1, device=device, dtype=L.dtype)
+            dW = t.triangular_solve(Z, L, upper=False, transpose=True)[0]
+            self._sample = (t.cholesky_solve(XLY, L) + dW).squeeze(-1)
 
-    logP = mvnormal_log_prob_unnorm(prior_prec, self._sample.transpose(-1, -2))
-    logQ = -0.5*(Z**2).sum((-1, -2, -3)) + 0.5*logdet_prec
+        logP = mvnormal_log_prob_unnorm(prior_prec, self._sample.transpose(-1, -2))
+        logQ = -0.5*(Z**2).sum((-1, -2, -3)) + 0.5*logdet_prec
+
+    else:
+        if self._sample is not None:
+            assert S == self._sample.shape[0]
+            dW = self._sample.transpose(-1, -2) - t.cholesky_solve(XLY.squeeze(-1).transpose(-1, -2), L.squeeze(1))
+            Z = L.squeeze(1).transpose(-1, -2) @ dW
+        else:
+            Z = t.randn(S, in_features, out_features, device=device, dtype=L.dtype)
+            dW = t.triangular_solve(Z, L.squeeze(1), upper=False, transpose=True)[0]
+            self._sample = (t.cholesky_solve(XLY.squeeze(-1).transpose(-1, -2), L.squeeze(1)) + dW).transpose(-1, -2)
+
+        logP = mvnormal_log_prob_unnorm(prior_prec, self._sample.transpose(-1, -2))
+        logQ = -0.5 * (Z ** 2).sum((-1, -2)) + 0.5 * logdet_prec
 
     logPQw = logP-logQ
     self.logpq = logPQw
@@ -49,7 +63,7 @@ def rsample_logpq_weights_fc(self, Xi, neuron_prec):
     log_prec = self.log_prec_lr*self.log_prec_scaled
     XiT = Xi.transpose(-1, -2)
     if self.prec_L is None:
-        XiLT  = log_prec.exp() * XiT#.transpose(-1, -2)
+        XiLT  = log_prec.exp() * XiT
     else:
         XiLT = XiT @ ((self.prec_L*log_prec.exp())@self.prec_L.transpose(-1, -2))
     XiLXi = XiLT @ Xi
@@ -91,7 +105,7 @@ class GILinearWeights(nn.Module):
 
     def forward(self, X):
         Xi = X[:, :self.inducing_batch, :]
-        return rsample_logpq_weights_fc(self, Xi.unsqueeze(1), neuron_prec=True)
+        return rsample_logpq_weights_fc(self, Xi.unsqueeze(1), neuron_prec=self.neuron_prec)
 
 
 class LILinearWeights(nn.Module):
@@ -126,7 +140,7 @@ class LILinearWeights(nn.Module):
     def forward(self, Xi):
         # inducing inputs are those stored, but expanded in first dimension to match inputs
         Xi = self.Xi.expand(Xi.shape[0], *self.Xi.shape)
-        return rsample_logpq_weights_fc(self, Xi, neuron_prec=True)
+        return rsample_logpq_weights_fc(self, Xi, neuron_prec=self.neuron_prec)
 
 
 class GIConv2dWeights(nn.Module):
@@ -160,8 +174,6 @@ class GIConv2dWeights(nn.Module):
         Xi = X[:, :self.inducing_batch, :, :, :]
         if self.u is None:
             (_, _, _, Hin, Win) = Xi.shape
-            #HW_in = (Hin, Win)
-            #HW_out = [(HW_in[i] + 2*self.padding - self.kernel_size) // self.stride + 1 for i in range(2)]
             self.u = nn.Parameter(t.randn(self.inducing_batch, self.out_channels, Hin, Win, device=Xi.device, dtype=Xi.dtype))
 
         sqrt_prec = (0.5 * self.log_prec_lr * self.log_prec_scaled).exp()[:, None, None, None]
@@ -171,7 +183,7 @@ class GIConv2dWeights(nn.Module):
         XiLXi, XiLY = conv_mm(Xil, Yil, self.kernel_size)
         XiLXi = XiLXi.unsqueeze(1)
         XiLY = XiLY.transpose(-1, -2).unsqueeze(-1)
-        return rsample_logpq_weights(self, XiLXi, XiLY, self.prior, neuron_prec=True)
+        return rsample_logpq_weights(self, XiLXi, XiLY, self.prior, neuron_prec=False)
 
 
 class LIConv2dWeights(nn.Module):
@@ -215,7 +227,7 @@ class LIConv2dWeights(nn.Module):
     def forward(self, Xi):
         # inducing inputs are those stored, but expanded in first dimension to match inputs
         Xi = self.Xi.expand(Xi.shape[0], *self.Xi.shape)
-        return rsample_logpq_weights_fc(self, Xi, neuron_prec=self.neuron_prec)
+        return rsample_logpq_weights_fc(self, Xi, neuron_prec=False)
         
 
 
