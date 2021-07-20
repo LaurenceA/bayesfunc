@@ -161,7 +161,7 @@ class GIConv2dWeights(nn.Module):
         self.padding = padding
         self.log_prec_init = log_prec_init
         self.log_prec_lr = log_prec_lr
-        self.neuron_prec = neuron_prec
+        self.neuron_prec = False  # neuron_prec not supported for conv layers
 
         self.u = None if (inducing_targets is None) else nn.Parameter(inducing_targets.clone().to(t.float32))
 
@@ -203,7 +203,7 @@ class LIConv2dWeights(nn.Module):
         self.padding = padding
         self.log_prec_init = log_prec_init
         self.log_prec_lr = log_prec_lr
-        self.neuron_prec = neuron_prec
+        self.neuron_prec = False  # neuron_prec not supported for conv layers
 
         in_features = in_channels*kernel_size**2
 
@@ -215,7 +215,7 @@ class LIConv2dWeights(nn.Module):
         self.u = nn.Parameter(t.randn(self.out_channels, inducing_batch, 1))
         self.Xi = nn.Parameter(t.randn(1, inducing_batch, in_features))
 
-        precs = out_features if neuron_prec else 1
+        precs = 1
         self.log_prec_scaled = nn.Parameter(lp_init*t.ones(precs, 1, inducing_batch))
         if full_prec:
             self.prec_L = nn.Parameter(t.eye(inducing_batch).expand(precs, -1, -1))
