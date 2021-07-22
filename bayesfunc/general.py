@@ -231,7 +231,6 @@ class MultKernel(nn.Module):
 #        return output, logpq
 
 
-
 class Reduce(nn.Module):
     def __init__(self, *args):
         super().__init__()
@@ -302,28 +301,28 @@ class AbstractBatchNorm2d(nn.Module):
 
     def forward(self, x):
         (S, _, _, _, _) = x.shape
-        return x
 
-        mult, mult_logPQ = self.mult(S)
-        bias, bias_logPQ = self.bias(S)
+        mult = self.mult(S)
+        bias = self.bias(S)
 
-        if hasattr(self, "inducing_batch"):
-            Ex, Ex2 = self.moments(x)
+        if self.inducing_batch is not None:
+            Ex, Ex2 = self.moments(x[:, :self.inducing_batch])  # base bn on inducing batch statistics
         else:
             Ex, Ex2 = self.moments(x)
 
         s = t.rsqrt(Ex2 - Ex**2)
         x = (mult*s)*x + (-s*Ex+bias)
-        return x, mult_logPQ + bias_logPQ
+        return x
 
 
 class DetBatchNorm2d(AbstractBatchNorm2d):
-    def __init__(self, channels):
+    def __init__(self, channels, inducing_batch=None):
         super().__init__()
         self._mult = nn.Parameter(t.ones(1, channels, 1, 1))
         self._bias = nn.Parameter(t.zeros(1, channels, 1, 1))
 
         self.logits_prop = nn.Parameter(t.zeros(1, 1, 1, 1, 2))
+        self.inducing_batch = inducing_batch
 
     def mult(self, S):
         return self._mult
