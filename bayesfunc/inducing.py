@@ -72,7 +72,7 @@ def rsample_logpq_weights_fc(self, Xi, neuron_prec):
 
 
 class GILinearWeights(nn.Module):
-    def __init__(self, in_features, out_features, prior=NealPrior, bias=True, inducing_targets=None, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, inducing_batch=None, full_prec=False):
+    def __init__(self, in_features, out_features, prior=NealPrior, bias=True, inducing_targets=None, log_prec_init=0., log_prec_lr=1., neuron_prec=False, inducing_batch=None, full_prec=False):
         super().__init__()
         assert inducing_batch is not None
         self.inducing_batch = inducing_batch
@@ -109,7 +109,7 @@ class GILinearWeights(nn.Module):
 
 
 class LILinearWeights(nn.Module):
-    def __init__(self, in_features, out_features, prior=NealPrior, bias=True, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, full_prec=False):
+    def __init__(self, in_features, out_features, prior=NealPrior, bias=True, log_prec_init=0., log_prec_lr=1., neuron_prec=False, full_prec=False):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -144,7 +144,7 @@ class LILinearWeights(nn.Module):
 
 
 class GIConv2dWeights(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, prior=NealPrior, stride=1, padding=0, inducing_targets=None, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, inducing_batch=None):
+    def __init__(self, in_channels, out_channels, kernel_size, prior=NealPrior, stride=1, padding=0, inducing_targets=None, log_prec_init=0., log_prec_lr=1., neuron_prec=False, inducing_batch=None):
         super().__init__()
         assert inducing_batch is not None
         assert inducing_batch != 0
@@ -187,7 +187,7 @@ class GIConv2dWeights(nn.Module):
 
 
 class LIConv2dWeights(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, prior=NealPrior, stride=1, padding=0, log_prec_init=-4., log_prec_lr=1., neuron_prec=False, full_prec=False):
+    def __init__(self, in_channels, out_channels, kernel_size, prior=NealPrior, stride=1, padding=0, log_prec_init=0., log_prec_lr=1., neuron_prec=False, full_prec=False):
         super().__init__()
         assert 1==kernel_size%2
         assert padding == kernel_size//2
