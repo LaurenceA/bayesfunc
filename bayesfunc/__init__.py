@@ -7,6 +7,6 @@ from .inducing import GILinear, GILinearFullPrec, GIConv2d, LILinear, LIConv2d
 from .det import DetLinear, DetConv2d
 from .gp import GIGP, KernelGIGP, KernelLIGP
 from .wishart_layer import IWLinear
-from .kernels_minimal import SqExpKernel, SqExpKernelGram, ReluKernelGram, ReluKernelFeatures, FeaturesToKernel, CombinedKernel, IdentityKernel
+from .kernels_minimal import *
 from .outputs import CategoricalOutput, NormalOutput, CutOutput
 from .dkp import *
