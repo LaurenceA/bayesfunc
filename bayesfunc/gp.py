@@ -28,21 +28,31 @@ class GIGP(nn.Module):
         - **log_prec_lr:** Precision learning rate multiplier. Default: ``1.``.
 
     """
-    def __init__(self, out_features, inducing_targets=None, log_prec_init=-4., log_prec_lr=1., inducing_batch=None):
+    def __init__(self, out_features, inducing_targets=None, log_prec_init=0., inducing_batch=None, neuron_prec=False,
+                 jitter=1e-8):
         super().__init__()
 
         assert inducing_batch is not None
         self.inducing_batch = inducing_batch
         self.out_features = out_features
 
+        if neuron_prec:
+            self.L_loc = nn.Parameter(t.eye(self.inducing_batch).expand(out_features, self.inducing_batch, self.inducing_batch))
+            self.L_scale = nn.Parameter(0.5*log_prec_init*t.ones(out_features, 1, 1))
+        else:
+            self.L_loc = nn.Parameter(t.eye(self.inducing_batch).unsqueeze(0))
+            self.L_scale = nn.Parameter(0.5*log_prec_init*t.ones(()))
+
         self.L_scale = nn.Parameter(0.5*log_prec_init*t.ones(()))
         self.L_loc   = nn.Parameter(t.eye(self.inducing_batch))
         if inducing_targets is None:
-            self.u = nn.Parameter(t.randn(self.inducing_batch, self.out_features))
+            self.u = nn.Parameter(t.randn(self.out_features, self.inducing_batch, 1))
         else:
-            self.u = nn.Parameter(inducing_targets.clone().to(t.float32))
+            self.u = nn.Parameter(inducing_targets.clone().to(t.float32).t().unsqueeze(-1))
 
         self._sample = None
+
+        self.jitter = jitter
 
     @property
     def L(self):
@@ -66,7 +76,6 @@ class GIGP(nn.Module):
         # t.cholesky(Kuu) only used for f|u and sampling: singular cholesky would work.
         #(S, P, _) = K.shape
         #kwargs = {'device': K.device, 'dtype': K.dtype}
-
         
         #Kuu = K[:, :self.inducing_batch, :self.inducing_batch]
         #Kfu = K[..., self.inducing_batch:, :self.inducing_batch]
@@ -78,10 +87,15 @@ class GIGP(nn.Module):
         Kfu = K.it.transpose(-1, -2)
         Kff = K.tt
 
-        (S, _, _) = Kuu.shape
+        Kuu, Kuf, Kfu = Kuu.unsqueeze(1), Kuf.unsqueeze(1), Kfu.unsqueeze(1)
+
+        (S, _, _, _) = Kuu.shape
         kwargs = {'device': Kuu.device, 'dtype': Kuu.dtype}
 
-        pd_Kuu = PositiveDefiniteMatrix(Kuu)
+        if self.jitter is not None:
+            pd_Kuu = PositiveDefiniteMatrix(Kuu + self.jitter*t.max(Kuu).detach()*t.eye(self.inducing_batch, **kwargs))
+        else:
+            pd_Kuu = PositiveDefiniteMatrix(Kuu)
         Iuu = t.eye(self.inducing_batch, **kwargs)
 
         L = self.L
@@ -95,28 +109,27 @@ class GIGP(nn.Module):
 
         #Sample noise distributed as precision, then multiply by Sigma.
         #inv_Kuu_noise = pd_Kuu.inv_chol().t()(t.randn(S, self.inducing_batch, self.out_features, **kwargs))
-        inv_Kuu_noise = pd_Kuu.inv_sqrt()(t.randn(S, self.inducing_batch, self.out_features, **kwargs))
-        L_noise = self.L@t.randn(S, self.inducing_batch, self.out_features, **kwargs)
+        inv_Kuu_noise = pd_Kuu.inv_sqrt()(t.randn(S, self.out_features, self.inducing_batch, 1, **kwargs))
+        L_noise = self.L@t.randn(S, self.out_features, self.inducing_batch, 1, **kwargs)
         prec_noise = inv_Kuu_noise + L_noise
         u = Sigma@((L@LT)@self.u + prec_noise)
 
         lv = LT@self.u
-        logP = mvnormal_log_prob(inv_lKlpI, lv)
-        logQ = Normal(LT@u, 1.).log_prob(lv).sum((-1, -2))
+        logP = mvnormal_log_prob(inv_lKlpI, lv).sum(-1)
+        logQ = Normal(LT@u, 1.).log_prob(lv).sum((-1, -2, -3))
 
         #### f|u
 
         Kfu_invKuu = pd_Kuu.inv(Kuf).transpose(-1, -2)
-        Ef = Kfu_invKuu @ u
-        #Vf = (Kff - Kfu_invKuu @ Kuf).diagonal(dim1=-1, dim2=-2)
-        Vf = Kff - (Kfu_invKuu * Kuf.transpose(-1, -2)).sum(-1)
+        Ef = (Kfu_invKuu @ u).squeeze(-1).transpose(-1, -2)
+        Vf = Kff - (Kfu_invKuu*Kfu).sum(-1).squeeze(1)
 
         Pf = Normal(Ef, Vf.sqrt()[..., None])
         f = Pf.rsample()
 
         self.logpq = logP-logQ
 
-        return t.cat([u, Pf.rsample()], -2)
+        return t.cat([u.squeeze(-1).transpose(-1, -2), Pf.rsample()], -2)
 
 
 def KernelGIGP(in_features, out_features, inducing_batch=None, **kwargs):
