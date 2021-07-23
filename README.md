@@ -24,3 +24,4 @@ Navigate to `docs` and run `make html`.
 - finalise docs
 - guide to extending kernels
 - philosophy of having no learned prior parameters
+- parameterize "Choleskys" as lower triangular not full
