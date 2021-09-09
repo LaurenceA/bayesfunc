@@ -18,6 +18,7 @@ Navigate to `docs` and run `make html`.
 
 ## TODOs
 - Check full covariance for all "fully-connected" units
+- fix L property for gp
 - allow the sampled function to be "frozen"
 - copy nets; draw a sample from one net and compute log-prob under the other
 - regression tests
