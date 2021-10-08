@@ -103,6 +103,13 @@ def logpq(f):
             mod.logpq = None
     return total
 
+
+def set_full_cov(f, full_cov):
+    for mod in f.modules():
+        if hasattr(mod, "full_cov"):
+            setattr(mod, "full_cov", full_cov)
+
+
 def clear_sample(f):
     for mod in f.modules():
         if hasattr(mod, "_sample"):
@@ -125,7 +132,7 @@ def set_sample_dict(f, sample_dict, detach=True):
 
         mod._sample = sample
 
-def propagate(f, *args, sample_dict=None, detach=True):
+def propagate(f, *args, sample_dict=None, detach=True, **kwargs):
     """
     The ONLY way to run the neural networks defined in bayesfunc.  Replaces `f(input)`, which will now fail silently!
     
@@ -150,18 +157,18 @@ def propagate(f, *args, sample_dict=None, detach=True):
     clear_sample(f)
     if sample_dict is not None:
         set_sample_dict(f, sample_dict, detach=detach)
-    output = f(*args) 
+    output = f(*args, **kwargs)
     sample_dict = get_sample_dict(f)
     clear_sample(f)
     return output, logpq(f), sample_dict
 
     
 class NormalLearnedScale(nn.Module):
-    def __init__(self):
+    def __init__(self, log_scale: float = 0.):
         super().__init__()
-        self.log_scale = nn.Parameter(t.zeros(()))
+        self.log_scale = nn.Parameter(log_scale*t.ones(()))
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
         return td.Normal(x, self.log_scale.exp())
 
 class Bias(nn.Module):

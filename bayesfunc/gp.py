@@ -54,6 +54,8 @@ class GIGP(nn.Module):
 
         self.jitter = jitter
 
+        self.full_cov = False
+
     @property
     def L(self):
         norm = self.L_loc.diag().mean()
@@ -122,14 +124,24 @@ class GIGP(nn.Module):
 
         Kfu_invKuu = pd_Kuu.inv(Kuf).transpose(-1, -2)
         Ef = (Kfu_invKuu @ u).squeeze(-1).transpose(-1, -2)
-        Vf = Kff - (Kfu_invKuu*Kfu).sum(-1).squeeze(1)
 
-        Pf = Normal(Ef, Vf.sqrt()[..., None])
-        f = Pf.rsample()
+        if self.full_cov:
+            Vf = Kff - t.squeeze(Kfu_invKuu @ Kuf, 1)
+            if self.jitter is not None:
+                Vf = Vf + self.jitter*t.max(Vf).detach()*t.eye(Vf.shape[-1], **kwargs)
+
+            Vf = PositiveDefiniteMatrix(Vf)
+            eps = t.randn_like(Ef)
+            f = Ef + Vf.chol()(eps)
+        else:
+            Vf = Kff - (Kfu_invKuu*Kfu).sum(-1).squeeze(1)
+
+            Pf = Normal(Ef, Vf.sqrt()[..., None])
+            f = Pf.rsample()
 
         self.logpq = logP-logQ
 
-        return t.cat([u.squeeze(-1).transpose(-1, -2), Pf.rsample()], -2)
+        return t.cat([u.squeeze(-1).transpose(-1, -2), f], -2)
 
 
 def KernelGIGP(in_features, out_features, inducing_batch=None, **kwargs):

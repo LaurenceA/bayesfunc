@@ -89,6 +89,8 @@ class IWLayer(nn.Module):
         self.log_diag = nn.Parameter(t.zeros(())) #-4*t.ones(()))#Just a scale parameter for VV^T.
         self.log_gamma = nn.Parameter(t.zeros(())) #t.zeros(())) #Increase!
 
+        self.full_cov = False
+
     @property
     def delta(self):
         return self.log_delta.exp()
@@ -134,12 +136,35 @@ class IWLayer(nn.Module):
 
         return Gii
 
-    def forward(self, K):
-        #if np.random.rand() < 0.01:
-        #    print()
-        #    print(("gamma:", self.log_gamma.item()))
-        #    print(("delta:", self.log_delta.item()))
-        #    #print(("diag:", self.log_diag))
+    def forward_full_cov(self, K):
+        dKii = PositiveDefiniteMatrix(self.delta * K.ii)
+        dkit = self.delta * K.it
+        dKtt = self.delta * K.tt
+
+        Pi = self.P
+        Pt = dKtt.shape[-1]
+
+        Gii = self.Gii(dKii).full()
+        (S, _, _) = dkit.shape
+        assert self.logpq.shape == t.Size([S])
+
+        inv_Kii = Inv(dKii)
+        inv_Kii_kit = inv_Kii(dkit)
+
+        # full covariance form
+        dKtti = PositiveDefiniteMatrix(dKtt - dkit.transpose(-1, -2) @ inv_Kii_kit)
+        nu = self.delta + Pi + Pt + 1
+        Ptti = InverseWishart(dKtti, nu)
+        Gtti = PositiveDefiniteMatrix(Ptti.rsample().full())
+
+        inv_Gii_git = inv_Kii_kit + inv_Kii.sqrt()(t.randn_like(dkit)) @ Gtti.chol().t().full()
+        Git = Gii @ inv_Gii_git
+
+        Gtt = Gtti.full() + Git.transpose(-1, -2) @ inv_Gii_git
+
+        return KG(Gii, Git, Gtt)
+
+    def forward_marginals(self, K):
         """
         DSVI evaluation of the Schur complement of K.
         Evaluate for a single test-point
@@ -151,12 +176,10 @@ class IWLayer(nn.Module):
         ktt : scalar
         """
 
-        #Kii = PositiveDefiniteMatrix(K.ii)
-        dKii = PositiveDefiniteMatrix(self.delta*K.ii)
-        dkit = self.delta*K.it
-        dktt = self.delta*K.tt
-
-       
+        # Kii = PositiveDefiniteMatrix(K.ii)
+        dKii = PositiveDefiniteMatrix(self.delta * K.ii)
+        dkit = self.delta * K.it
+        dktt = self.delta * K.tt
 
         Pi = self.P
         Pt = dktt.shape[-1]
@@ -169,21 +192,32 @@ class IWLayer(nn.Module):
 
         # Diagonal of Schur complement
         dktti = dktt - (dkit * inv_Kii_kit).sum(-2)
-        alpha = (self.delta + Pi + Pt + 1)/2
-        Ptt = t.distributions.Gamma(concentration=alpha, rate=dktti/2)
+        alpha = (self.delta + Pi + Pt + 1) / 2
+        Ptt = t.distributions.Gamma(concentration=alpha, rate=dktti / 2)
         gtti = Ptt.rsample().reciprocal()
-
 
         inv_Gii_git = inv_Kii_kit + dKii.inv_sqrt()(t.randn_like(dkit)) * gtti.sqrt()[:, None, :]
         git = Gii @ inv_Gii_git
 
         gtt = gtti + (git * inv_Gii_git).sum(-2)
 
-        #print("dkp")
-        #print(Gii[0, :3, :3])
-        #print(git[0, :3, :3])
-        #print(gtt[0, :3])
+        # print("dkp")
+        # print(Gii[0, :3, :3])
+        # print(git[0, :3, :3])
+        # print(gtt[0, :3])
         return KG(Gii, git, gtt)
+
+    def forward(self, K):
+        #if np.random.rand() < 0.01:
+        #    print()
+        #    print(("gamma:", self.log_gamma.item()))
+        #    print(("delta:", self.log_delta.item()))
+        #    #print(("diag:", self.log_diag))
+        if self.full_cov:
+            return self.forward_full_cov(K)
+        else:
+            return self.forward_marginals(K)
+
 
 class SingularIWLayer(IWLayer):
     """

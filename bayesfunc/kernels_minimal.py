@@ -16,8 +16,10 @@ class Kernel(nn.Module):
         else:
             self.log_noise = None
 
+        self.full_cov = False
+
     def forward(self, xG):
-        (d2ii, d2it, d2tt) = self.distances(xG)
+        (d2ii, d2it, d2tt) = self.distances(xG, full_cov=self.full_cov)
 
         if self.log_noise is not None:
             noise_var = t.exp(self.log_noise)
@@ -27,7 +29,11 @@ class Kernel(nn.Module):
         Kii = self.kernel(d2ii)
         Kii = Kii + noise_var*t.eye(Kii.shape[-1], device=d2ii.device, dtype=d2ii.dtype)
         Kit = self.kernel(d2it)
-        Ktt = self.kernel(d2tt) + noise_var
+        if self.full_cov:
+            Ktt = self.kernel(d2tt)
+            Ktt = Ktt + noise_var * t.eye(Ktt.shape[-1], device=d2tt.device, dtype=d2tt.dtype)
+        else:
+            Ktt = self.kernel(d2tt) + noise_var
 
         h = (2*self.log_height).exp()
 
@@ -104,20 +110,24 @@ class KernelGram(Kernel):
             self.log_lengthscales = log_lengthscale*t.ones(())
         self.log_height = nn.Parameter(t.zeros(()))
 
-    def distances(self, G):
+    def distances(self, G, full_cov=False):
         Gii = G.ii
         Git = G.it
         Gtt = G.tt
 
         diag_Gii = Gii.diagonal(dim1=-1, dim2=-2)
         d2ii = diag_Gii[..., :, None] + diag_Gii[..., None, :] - 2*Gii
-        d2it = diag_Gii[..., :, None] + Gtt[..., None, :] - 2*Git
-        d2tt = t.zeros_like(Gtt)
+        if full_cov:
+            diag_Gtt = Gtt.diagonal(dim1=-1, dim2=-2)
+            d2it = diag_Gii[..., :, None] + diag_Gtt[..., None, :] - 2 * Git
+            d2tt = diag_Gtt[..., :, None] + diag_Gtt[..., None, :] - 2*Gtt
+        else:
+            d2it = diag_Gii[..., :, None] + Gtt[..., None, :] - 2 * Git
+            d2tt = t.zeros_like(Gtt)
 
         lm2 = (-2*self.log_lengthscales).exp()
- 
-        #don't need to multiply d2tt by lm2, because d2tt=0.
-        return (lm2*d2ii, lm2*d2it, d2tt)
+
+        return (lm2*d2ii, lm2*d2it, lm2*d2tt)
 
         
 class SqExpKernelGram(KernelGram):
@@ -186,7 +196,7 @@ class ReluKernelGram(nn.Module):
             #K = K + self.epsilon * t.eye(K.shape[-1], device=K.device, dtype=K.dtype)
         return K
 
-    def forward(self, K):
+    def forward(self, K, **kwargs):
         diag_ii = K.ii.diagonal(dim1=-1, dim2=-2)
         ii = self.component(K.ii, diag_ii, diag_ii)
         it = self.component(K.it, diag_ii, K.tt)
@@ -221,7 +231,7 @@ class FeaturesToKernel(nn.Module):
         self.inducing_batch = inducing_batch
         self.epsilon = epsilon
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
         in_features = x.shape[-1]
         xi = x[:, :self.inducing_batch ]
         xt = x[:,  self.inducing_batch:]
@@ -255,6 +265,7 @@ class FeaturesToKernelARD(nn.Module):
         self.inducing_batch = inducing_batch
         self.epsilon = epsilon
         self.log_lengthscales = nn.Parameter(t.zeros(in_features))
+        self.full_cov = False
 
     def forward(self, x):
         in_features = x.shape[-1]
@@ -264,11 +275,17 @@ class FeaturesToKernelARD(nn.Module):
 
         ii = xi @ xi.transpose(-1, -2) / in_features
         it = xi @ xt.transpose(-1, -2) / in_features
-        tt = (xt ** 2).sum(-1) / in_features
+        if self.full_cov:
+            tt = xt @ xt.transpose(-1, -2) / in_features
+        else:
+            tt = (xt ** 2).sum(-1) / in_features
 
         if self.epsilon is not None:
             ii = ii + self.epsilon * t.eye(ii.shape[-1], dtype=ii.dtype, device=ii.device)
-            tt = tt + self.epsilon
+            if self.full_cov:
+                tt = tt + self.epsilon * t.eye(tt.shape[-1], dtype=ii.dtype, device=ii.device)
+            else:
+                tt = tt + self.epsilon
 
         # print("f2k")
         # print(ii[0, :3, :3])
