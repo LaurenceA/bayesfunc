@@ -141,6 +141,8 @@ class IWLayer(nn.Module):
         dkit = self.delta * K.it
         dKtt = self.delta * K.tt
 
+        kwargs = {'device': dkit.device, 'dtype': dkit.dtype}
+
         Pi = self.P
         Pt = dKtt.shape[-1]
 
@@ -155,7 +157,8 @@ class IWLayer(nn.Module):
         dKtti = PositiveDefiniteMatrix(dKtt - dkit.transpose(-1, -2) @ inv_Kii_kit)
         nu = self.delta + Pi + Pt + 1
         Ptti = InverseWishart(dKtti, nu)
-        Gtti = PositiveDefiniteMatrix(Ptti.rsample().full())
+        Gtti_sample = Ptti.rsample().full()
+        Gtti = PositiveDefiniteMatrix(Gtti_sample + 1e-6*t.max(Gtti_sample).detach()*t.eye(Gtti_sample.shape[-1], **kwargs))
 
         inv_Gii_git = inv_Kii_kit + inv_Kii.sqrt()(t.randn_like(dkit)) @ Gtti.chol().t().full()
         Git = Gii @ inv_Gii_git

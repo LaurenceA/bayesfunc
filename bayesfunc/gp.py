@@ -29,7 +29,7 @@ class GIGP(nn.Module):
 
     """
     def __init__(self, out_features, inducing_targets=None, log_prec_init=0., inducing_batch=None, neuron_prec=False,
-                 jitter=1e-8):
+                 jitter=1e-6):
         super().__init__()
 
         assert inducing_batch is not None
