@@ -164,12 +164,13 @@ def propagate(f, *args, sample_dict=None, detach=True, **kwargs):
 
     
 class NormalLearnedScale(nn.Module):
-    def __init__(self, log_scale: float = 0.):
+    def __init__(self, log_scale: float = 0., lr_scale: float = 1.):
         super().__init__()
-        self.log_scale = nn.Parameter(log_scale*t.ones(()))
+        self.log_scale = nn.Parameter(log_scale*t.ones(())/lr_scale)
+        self.lr_scale = lr_scale
 
     def forward(self, x, **kwargs):
-        return td.Normal(x, self.log_scale.exp())
+        return td.Normal(x, (self.lr_scale*self.log_scale).exp())
 
 class Bias(nn.Module):
     def __init__(self, in_features):
