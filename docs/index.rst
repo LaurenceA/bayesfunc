@@ -17,8 +17,9 @@ In particular, we implement:
  - Global inducing variational inference for neural networks (https://arxiv.org/abs/2005.08140)
  - Global inducing variational inference for deep Gaussian processes (https://arxiv.org/abs/2005.08140)
  - Deep kernel processes (https://arxiv.org/abs/2010.01590)
+ - Deep Wishart processes (https://arxiv.org/abs/2107.10125)
 
-In addition, we implement a number of more standard methods, primarily to give fair, easy-to-implement comparisions:
+In addition, we implement a number of more standard methods, primarily to give fair, easy-to-implement comparisons:
 
  - Mean field variational inference
  - Sparse (deep) Gaussian processes inference 
@@ -193,3 +194,9 @@ Library reference: deep kernel processes
 
 .. autoclass:: bayesfunc.IWLayer
 .. autoclass:: bayesfunc.SingularIWLayer
+
+
+Library reference: deep Wishart processes
+------------------------------------------
+
+.. autoclass:: bayesfunc.WishartLayer

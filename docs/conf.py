@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath('../bayesfunc/'))
 # -- Project information -----------------------------------------------------
 
 project = 'bayesfunc'
-copyright = '2020, Laurence Aitchison, Sebastian Ober'
+copyright = '2021, Laurence Aitchison, Sebastian Ober'
 author = 'Laurence Aitchison, Sebastian Ober'
 
 # The full version, including alpha/beta/rc tags
