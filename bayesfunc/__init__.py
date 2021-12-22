@@ -10,3 +10,4 @@ from .wishart_layer import IWLinear
 from .kernels_minimal import SqExpKernel, SqExpKernelGram, ReluKernelGram, ReluKernelFeatures, FeaturesToKernel, CombinedKernel, IdentityKernel
 from .outputs import CategoricalOutput, NormalOutput, CutOutput
 from .dkp import *
+from .dwp import WishartLayer
