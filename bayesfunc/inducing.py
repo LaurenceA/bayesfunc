@@ -23,7 +23,7 @@ def rsample_logpq_weights(self, XLX, XLY, prior, neuron_prec=True):
         prior_prec_full = prior_prec_full.unsqueeze(1)
 
     prec = XLX + prior_prec_full
-    L = t.cholesky(prec)
+    L = t.linalg.cholesky(prec)
 
     logdet_prec = 2*L.diagonal(dim1=-1, dim2=-2).log().sum(-1)
     logdet_prec = logdet_prec.expand(S, out_features).sum(-1)
@@ -34,7 +34,7 @@ def rsample_logpq_weights(self, XLX, XLY, prior, neuron_prec=True):
         Z = L.transpose(-1, -2) @ dW
     else:
         Z = t.randn(S, out_features, in_features, 1, device=device, dtype=L.dtype)
-        dW = t.triangular_solve(Z, L, upper=False, transpose=True)[0]
+        dW = t.linalg.solve_triangular(L, Z, upper=False, left=True)[0]
         self._sample = (t.cholesky_solve(XLY, L) + dW).squeeze(-1)
 
     logP = mvnormal_log_prob_unnorm(prior_prec, self._sample.transpose(-1, -2))
